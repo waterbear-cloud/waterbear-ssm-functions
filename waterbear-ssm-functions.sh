@@ -26,8 +26,9 @@ function ssm_port_forward()
 {
     #echo "Starting session for instance: $2 on port $1"
     AWS_PROFILE=$1
-    LOCAL_PORT=$2
-    REMOTE_PORT=$3
+    SERVER_NAME=$2
+    LOCAL_PORT=$3
+    REMOTE_PORT=$4
 
     INSTANCE_ID=$(get_target_instance_id $AWS_PROFILE $SERVER_NAME)
 
@@ -48,7 +49,7 @@ function ssm_ssh()
 
     ps awux |grep session-manager-plugin |grep "localPortNumber\": \[\"${LOCAL_PORT}\"" >/dev/null 2>&1
     if [ $? -ne 0 ] ; then
-	ssm_port_forward $AWS_PROFILE $LOCAL_PORT 22 $INSTANCE_ID >$SSM_LOG 2>&1 &
+	ssm_port_forward $AWS_PROFILE $SERVER_NAME $LOCAL_PORT 22 >$SSM_LOG 2>&1 &
 	COUNT=0
 	TIMEOUT_SECS=20
 	while :
