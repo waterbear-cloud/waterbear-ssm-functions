@@ -10,7 +10,7 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 
 >#!/bin/bash
 >
-># Load the functions into scope
+># # Load the functions into scope
 >. /path/to/helper/waterbear-ssm-functions.sh
 > 
 ># SSH Example
