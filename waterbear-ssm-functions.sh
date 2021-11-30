@@ -10,7 +10,7 @@ function get_target_instance_id()
     AWS_PROFILE=$1
     SERVER_NAME=$2    
 
-    aws ec2 describe-instances --profile $AWS_PROFILE --filter Name=tag:Name,Values=$SERVER_NAME --query "Reservations[0].Instances[0].InstanceId" --output text
+    aws ec2 describe-instances --profile $AWS_PROFILE --query "Reservations[0].Instances[*].[InstanceId]" --filters Name=tag:Name,Values=$SERVER_NAME Name=instance-state-name,Values=running --output text 
 }
 
 function ssm_ssh_session()
