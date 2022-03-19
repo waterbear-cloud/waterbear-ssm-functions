@@ -1,3 +1,20 @@
+function valid_ip()
+{
+    local  ip=$1
+    local  stat=1
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
+            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    return $stat
+}
+
 function cache_mfa()
 {
     AWS_PROFILE=$1
@@ -8,9 +25,15 @@ function cache_mfa()
 function get_target_instance_id()
 {
     AWS_PROFILE=$1
-    SERVER_NAME=$2    
+    SERVER_NAME=$2
 
-    aws ec2 describe-instances --profile $AWS_PROFILE --query "Reservations[0].Instances[*].[InstanceId]" --filters Name=tag:Name,Values=$SERVER_NAME Name=instance-state-name,Values=running --output text 
+    FILTER=Name=tag:Name,Values=$SERVER_NAME    
+    if valid_ip $SERVER_NAME; then 
+	FILTER="Name=network-interface.addresses.private-ip-address,Values=$SERVER_NAME"
+    fi
+
+    echo aws ec2 describe-instances --profile $AWS_PROFILE --query "Reservations[0].Instances[*].[InstanceId]" --filters $FILTER Name=instance-state-name,Values=running --output text  >/tmp/aws.out
+    aws ec2 describe-instances --profile $AWS_PROFILE --query "Reservations[0].Instances[*].[InstanceId]" --filters $FILTER Name=instance-state-name,Values=running --output text 
 }
 
 function ssm_ssh_session()
@@ -19,6 +42,7 @@ function ssm_ssh_session()
     SERVER_NAME=$2    
 
     INSTANCE_ID=$(get_target_instance_id $AWS_PROFILE $SERVER_NAME)
+
     aws ssm start-session --profile $AWS_PROFILE --target $INSTANCE_ID
 }
 
@@ -31,7 +55,14 @@ function ssm_port_forward()
     REMOTE_PORT=$4
 
     INSTANCE_ID=$(get_target_instance_id $AWS_PROFILE $SERVER_NAME)
+    if [ "$INSTANCE_ID" == "None" ] ; then
+	echo "ERROR: Unable to get Instance ID for Server Name: $SERVER_NAME"
+	exit 1
+    fi
 
+    echo "Connecting localhost:$LOCAL_PORT to $INSTANCE_ID:$REMOTE_PORT"
+
+    echo aws ssm start-session --document-name AWS-StartPortForwardingSession --parameters "localPortNumber=$LOCAL_PORT,portNumber=$REMOTE_PORT" --profile $AWS_PROFILE --target $INSTANCE_ID
     aws ssm start-session --document-name AWS-StartPortForwardingSession --parameters "localPortNumber=$LOCAL_PORT,portNumber=$REMOTE_PORT" --profile $AWS_PROFILE --target $INSTANCE_ID
 }
 
