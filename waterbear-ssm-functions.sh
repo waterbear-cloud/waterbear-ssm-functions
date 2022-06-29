@@ -103,9 +103,9 @@ function declare_environment()
 function declare_asg()
 {
     GROUP="$1"
-    ASG="$2"
+    ASG=$"$2"
 
-    ASG_LIST+=("$GROUP:$ASG")
+    ASG_LIST+=($(echo "$GROUP:$ASG" | tr '_' '-'))
 }
 
 function process_args()
@@ -210,8 +210,12 @@ function ssm_command()
     # Upper case ENVIRONMENT
     #ASG_NAME="${PROJECT_U}-${ENVIRONMENT_U}-${APPLICATION_U}-${SUB_ENVIRONMENT}${ASG_ARG_U}-${SERVER_ARG_U}"
     ASG_NAME="${PROJECT_U}-${ENVIRONMENT_U}-${APPLICATION_U}-${ASG_ARG_U}-${SERVER_ARG_U}"
-    AWS_PROFILE="${NETENV_NAME}-${PROFILE_ENVIRONMENT}"
-    
+    if [ "$AWS_PROFILE_PREFIX" == "" ] ; then
+	AWS_PROFILE="${NETENV_NAME}-${PROFILE_ENVIRONMENT}"
+    else
+	AWS_PROFILE="${AWS_PROFILE_PREFIX}-${PROFILE_ENVIRONMENT}"
+    fi
+
     if [ "$INSTANCE_IP_ARG" != "" ] ; then
 	ASG_NAME="$INSTANCE_IP_ARG"	
     fi
@@ -223,6 +227,13 @@ function ssm_command()
 	    shift
 	    COMMAND_DEST=$1
 	    shift
+	    COMMAND=ssh
+	    ;;	
+	"scp-from") 
+	    COMMAND_SOURCE=$1
+	    shift
+	    COMMAND_DEST=$1
+	    shift	    
 	    COMMAND=ssh
 	    ;;	
     esac    
