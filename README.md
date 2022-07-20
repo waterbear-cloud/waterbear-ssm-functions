@@ -14,11 +14,14 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 >
 ># Configuration
 >NETENV_NAME=websites
+>
 >APPLICATION_NAME=workloads
+>
 >AWS_PROFILE_PREFIX=askmed
+>
 >SSH_USERNAME=ec2-user
+>
 >SSH_PRIVATE_KEY=~/.ssh/askmed_key_rsa
->#SSH_PRIVATE_KEY=~/Documents/WaterbearCloud/WaterbearCloud/credentials/wbsites-cloud-dev-us-west-2.pem
 >
 ># Initialize functions
 >&#35;  Load the functions into scope
