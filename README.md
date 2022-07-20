@@ -9,33 +9,25 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 *_/usr/local/bin/ssh-to-instance_*
 
 >#!/bin/bash
+>> 
+>&#35; SSH Example
 >
+># Configuration
+>NETENV_NAME=websites
+>APPLICATION_NAME=workloads
+>AWS_PROFILE_PREFIX=askmed
+>SSH_USERNAME=ec2-user
+>SSH_PRIVATE_KEY=~/.ssh/askmed_key_rsa
+>#SSH_PRIVATE_KEY=~/Documents/WaterbearCloud/WaterbearCloud/credentials/wbsites-cloud-dev-us-west-2.pem
+>
+># Initialize functions
 >&#35;  Load the functions into scope
 >
 >. /path/to/helper/waterbear-ssm-functions.sh
-> 
->&#35; SSH Example
 >
->ssm_ssh <aws_profile> <server_name> <ec2 user> <ssh_private_key_file> <local_port>
-
-The `ssm_ssh()` function will start an SSM Session using the AWS CLI to setup port forwarding on `localhost:<local_port>` to port 22 on the instance identified by `<server_name>`.
-
-*_/usr/local/bin/ssm-database-port-forward_*
-
->#!/bin/bash
+>declare_environment prod
+>declare_environment test
 >
->&#35; Load the functions into scope
+>declare_asg oscar_terminal_app server
 >
->. /path/to/helper/waterbear-ssm-functions.sh
->
->&#35; Port forwarding example
->
->ssm_port_forward <aws_profile> <server_name> <local_port> <remote_port>
-
-The `ssm_port_forward()` function will start an SSM Session using the AWS CLI to port forward `localhost:<local_port>` to the `<remote_port>` on the EC2 instance identified by `<server_name>`.
-
-
-
-
-
-
+>ssm_command $@
