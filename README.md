@@ -13,6 +13,7 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 >&#35; SSH Example
 >
 >&#35; Configuration
+>
 >NETENV_NAME=websites
 >
 >APPLICATION_NAME=workloads
@@ -24,7 +25,8 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 >SSH_PRIVATE_KEY=~/.ssh/askmed_key_rsa
 >
 >&#35; Initialize functions
->&#35;  Load the functions into scope
+>
+>&#35; Load the functions into scope
 >
 >. /path/to/helper/waterbear-ssm-functions.sh
 >
