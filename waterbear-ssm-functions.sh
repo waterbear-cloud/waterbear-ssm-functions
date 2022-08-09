@@ -63,13 +63,15 @@ PORT_FILE="${PORT_FILE_FOLDER}/ssh-local-ports"
 if [ "$INSTANCE_IP_ARG" != "" ] ; then
     INSTANCE_IP_CACHE="-${INSTANCE_IP_ARG}"
 fi
-PORT_CACHE_FILE="${PORT_FILE_FOLDER}/${NETENV_NAME}-${ENVIRONMENT_ARG}-${ASG_ARG}-${SERVER_ARG}${INSTANCE_IP_CACHE}.cache"
-PORT_PID_CACHE_FILE="${PORT_CACHE_FILE}.port-pid"
+
+PORT_CACHE_FILE=""
+PORT_PID_CACHE_FILE=""
+
 
 
 function usage()
 {
-    echo "usage: $0 <environment> <asg> <server> [instance IP|scp]"
+    echo "usage: $0 <environment> <asg> <server> [instance IP|scp|scp-from]"
     echo
     echo "Environments:"
     for ENVIRONMENT in "${ENVIRONMENT_LIST[@]}"
@@ -150,6 +152,7 @@ function get_unique_port()
 {
     ENVIRONMENT=$1
     ASG=$2
+    REMOTE_PORT=$3
     
     # User Ports Range
     PORT_START=40000
@@ -183,6 +186,14 @@ function get_unique_port()
     done
 }
 
+function generate_cache_file()
+{
+    ENVIRONMENT_ARG=$1
+    ASG_ARG=$2
+    REMOTE_PORT=$3
+    echo "${PORT_FILE_FOLDER}/${NETENV_NAME}-${ENVIRONMENT_ARG}-${ASG_ARG}-${SERVER_ARG}${INSTANCE_IP_CACHE}-${REMOTE_PORT}.cache"
+}
+
 function ssm_command()
 {
     COMMAND_ARG=$1
@@ -195,7 +206,6 @@ function ssm_command()
     # Process Command Arguments
     process_args
     # Generate a local port to use
-    LOCAL_PORT=$(get_unique_port $ENVIRONMENT_ARG $ASG_ARG)
 
     if [ "$SUB_ENVIRONMENT" == "" ] ; then
 	ENVIRONMENT_U=$(tr '[:lower:]' '[:upper:]' <<< ${ENVIRONMENT_ARG:0:1})${ENVIRONMENT_ARG:1}
@@ -242,11 +252,17 @@ function ssm_command()
     shift
     case $COMMAND in
 	"ssh")
+	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $ASG_ARG 22)
+	    PORT_PID_CACHE_FILE="${PORT_CACHE_FILE}.port-pid"
+	    LOCAL_PORT=$(get_unique_port $ENVIRONMENT_ARG $ASG_ARG 22)
 	    echo ssm_ssh $AWS_PROFILE $ASG_NAME $SSH_USERNAME $SSH_PRIVATE_KEY $LOCAL_PORT $COMMAND_ARG $COMMAND_SOURCE $COMMAND_DEST
 	    ssm_ssh $AWS_PROFILE $ASG_NAME $SSH_USERNAME $SSH_PRIVATE_KEY $LOCAL_PORT $COMMAND_ARG $COMMAND_SOURCE $COMMAND_DEST
 	    ;;
 	"port_forward")
 	    REMOTE_PORT=$2
+	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $ASG_ARG $REMOTE_PORT)
+	    PORT_PID_CACHE_FILE="${PORT_CACHE_FILE}.port-pid"
+	    LOCAL_PORT=$(get_unique_port $ENVIRONMENT_ARG $ASG_ARG $REMOTE_PORT)
 	    echo ssm_port_forward $AWS_PROFILE $ASG_NAME $LOCAL_PORT $REMOTE_PORT $INSTANCE_IP
 	    ssm_port_forward $AWS_PROFILE $ASG_NAME $LOCAL_PORT $REMOTE_PORT $INSTANCE_IP
 	    ;;	    
@@ -318,6 +334,9 @@ function ssm_ssh()
     SSM_LOG=/tmp/ssm_ssh.log
 
     cache_mfa $AWS_PROFILE
+
+    echo "Local Port Cache File: $PORT_CACHE_FILE"
+    echo
 
     ps awux |grep session-manager-plugin |grep "localPortNumber\": \[\"${LOCAL_PORT}\"" >/dev/null 2>&1
     if [ $? -ne 0 ] ; then
