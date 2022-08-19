@@ -28,7 +28,6 @@ ASG_ARG=$1
 shift
 SERVER_ARG=$1
 shift
-
 # Args: Command and Instance IP
 declare -a ENVIRONMENT_ALIAS
 declare -a ENVIRONMENT_LIST
@@ -140,7 +139,6 @@ function process_args()
     do
 	ALIAS=$(echo $ALIAS_KVP | cut -d '=' -f 1)
 	if [ "$ALIAS" == "$ENVIRONMENT_ARG" ] ; then
-	    ENVIRONMENT_ARG="$ENVIRONMENT"
 	    PROFILE_ENVIRONMENT=$(echo $ALIAS_KVP | cut -d '=' -f 2)
 	    break
 	fi
@@ -206,6 +204,7 @@ function ssm_command()
     # Process Command Arguments
     process_args
     # Generate a local port to use
+
 
     if [ "$SUB_ENVIRONMENT" == "" ] ; then
 	ENVIRONMENT_U=$(tr '[:lower:]' '[:upper:]' <<< ${ENVIRONMENT_ARG:0:1})${ENVIRONMENT_ARG:1}
@@ -358,6 +357,7 @@ function ssm_ssh()
 		echo "Opening SSH connection on new session: localhost:$LOCAL_PORT"
 		echo "$PID >$PORT_CACHE_FILE.smp-pid"
 		echo $PID >$PORT_PID_CACHE_FILE
+		sleep 2
 		break
 	    fi
 	    grep "An error occurred" $SSM_LOG >/dev/null 2>&1
