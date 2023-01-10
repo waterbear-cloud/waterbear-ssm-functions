@@ -5,8 +5,6 @@
 #
 # # Configuration
 # NETENV_NAME=<netenv name>
-# APPLICATION_NAME=<app name>
-# SSH_USERNAME=ec2-user
 # SSH_PRIVATE_KEY=~/.ssh/id_rsa
 #
 # # Load the Functions
@@ -24,10 +22,15 @@
 # Args
 ENVIRONMENT_ARG=$1
 shift
+APP_ARG=$1
+shift
 ASG_ARG=$1
 shift
 SERVER_ARG=$1
 shift
+SSH_USERNAME_ARG=$1
+shift
+
 # Args: Command and Instance IP
 declare -a ENVIRONMENT_ALIAS
 declare -a ENVIRONMENT_LIST
@@ -70,7 +73,7 @@ PORT_PID_CACHE_FILE=""
 
 function usage()
 {
-    echo "usage: $0 <environment> <asg> <server> [instance IP|scp|scp-from]"
+    echo "usage: $0 <environment> <app name> <asg> <server> <username> [instance IP|scp|scp-from]"
     echo
     echo "Environments:"
     for ENVIRONMENT in "${ENVIRONMENT_LIST[@]}"
@@ -81,9 +84,11 @@ function usage()
     echo -e "Servers:"
     for ASG_GRP in "${ASG_LIST[@]}"
     do
-	ASG_NAME=$(echo $ASG_GRP | cut -d ':' -f 1)
-	SERVER_NAME=$(echo $ASG_GRP | cut -d ':' -f 2)	
-	echo -e "\t${ASG_NAME} ${SERVER_NAME}"
+	APP_NAME=$(echo $ASG_GRP | cut -d ':' -f 1)
+	ASG_NAME=$(echo $ASG_GRP | cut -d ':' -f 2)
+	SERVER_NAME=$(echo $ASG_GRP | cut -d ':' -f 3)
+	SSH_USERNAME=$(echo $ASG_GRP | cut -d ':' -f 4)	
+	echo -e "\t${APP_NAME} ${ASG_NAME} ${SERVER_NAME} ${SSH_USERNAME}"
     done
     
     exit 1
@@ -103,17 +108,19 @@ function declare_environment()
 
 function declare_asg()
 {
-    GROUP="$1"
-    ASG=$"$2"
+    APPLICATION="$1"
+    GROUP="$2"
+    ASG="$3"
+    USERNAME="$4"
 
-    ASG_LIST+=($(echo "$GROUP:$ASG" | tr '_' '-'))
+    ASG_LIST+=($(echo "$APPLICATION:$GROUP:$ASG:$USERNAME" | tr '_' '-'))
 }
 
 function process_args()
 {
-    
     # Assert: Environment exists
     if [[ ! " ${ENVIRONMENT_LIST[*]} " =~ " ${ENVIRONMENT_ARG} " ]]; then
+	echo "ERROR: Unable to find environment: ${ENVIRONMENT_ARG}"
 	usage
     fi
     
@@ -121,18 +128,21 @@ function process_args()
     FOUND=0
     for ASG_GRP in "${ASG_LIST[@]}"
     do
-	ASG_NAME=$(echo $ASG_GRP | cut -d ':' -f 1)
-	SERVER_NAME=$(echo $ASG_GRP | cut -d ':' -f 2)
-	if [ "$ASG_NAME" == "$ASG_ARG" -a "$SERVER_NAME" == "$SERVER_ARG" ] ; then
+	APP_NAME=$(echo $ASG_GRP | cut -d ':' -f 1)
+	ASG_NAME=$(echo $ASG_GRP | cut -d ':' -f 2)
+	SERVER_NAME=$(echo $ASG_GRP | cut -d ':' -f 3)
+	SSH_USERNAME=$(echo $ASG_GRP | cut -d ':' -f 4)
+	if [ "$APP_NAME" == "$APP_ARG" -a "$ASG_NAME" == "$ASG_ARG" -a "$SERVER_NAME" == "$SERVER_ARG" -a "$SSH_USERNAME" == "$SSH_USERNAME_ARG" ] ; then
 	    FOUND=1
 	    break
 	fi
     done
+    
     if [ $FOUND -eq 0 ] ; then
-	echo "ERROR: Unable to find ASG and Server: $ASG_ARG $SERVER_ARG"
+	echo "ERROR: Unable to find ASG and Server: $APP_ARG $ASG_ARG $SERVER_ARG $SSH_USERNAME_ARG"
 	usage
     fi
-    
+
     # Map the Alias environment
     PROFILE_ENVIRONMENT="$ENVIRONMENT_ARG"
     for ALIAS_KVP in "${ENVIRONMENT_ALIAS[@]}"
@@ -187,9 +197,10 @@ function get_unique_port()
 function generate_cache_file()
 {
     ENVIRONMENT_ARG=$1
-    ASG_ARG=$2
-    REMOTE_PORT=$3
-    echo "${PORT_FILE_FOLDER}/${NETENV_NAME}-${ENVIRONMENT_ARG}-${ASG_ARG}-${SERVER_ARG}${INSTANCE_IP_CACHE}-${REMOTE_PORT}.cache"
+    APP_ARG=$2
+    ASG_ARG=$3
+    REMOTE_PORT=$4
+    echo "${PORT_FILE_FOLDER}/${NETENV_NAME}-${ENVIRONMENT_ARG}-${APP_ARG}-${ASG_ARG}-${SERVER_ARG}${INSTANCE_IP_CACHE}-${REMOTE_PORT}.cache"
 }
 
 function ssm_command()
@@ -204,8 +215,6 @@ function ssm_command()
     # Process Command Arguments
     process_args
     # Generate a local port to use
-
-
     if [ "$SUB_ENVIRONMENT" == "" ] ; then
 	ENVIRONMENT_U=$(tr '[:lower:]' '[:upper:]' <<< ${ENVIRONMENT_ARG:0:1})${ENVIRONMENT_ARG:1}
     else
@@ -214,7 +223,7 @@ function ssm_command()
     ASG_ARG_U=$(tr '[:lower:]' '[:upper:]' <<< ${ASG_ARG:0:1})${ASG_ARG:1}
     SERVER_ARG_U=$(tr '[:lower:]' '[:upper:]' <<< ${SERVER_ARG:0:1})${SERVER_ARG:1}
     PROJECT_U=$(tr '[:lower:]' '[:upper:]' <<< ${NETENV_NAME:0:1})${NETENV_NAME:1}
-    APPLICATION_U=$(tr '[:lower:]' '[:upper:]' <<< ${APPLICATION_NAME:0:1})${APPLICATION_NAME:1}
+    APPLICATION_U=$(tr '[:lower:]' '[:upper:]' <<< ${APP_ARG:0:1})${APP_ARG:1}
     
     # Upper case ENVIRONMENT
     #ASG_NAME="${PROJECT_U}-${ENVIRONMENT_U}-${APPLICATION_U}-${SUB_ENVIRONMENT}${ASG_ARG_U}-${SERVER_ARG_U}"
@@ -251,15 +260,15 @@ function ssm_command()
     shift
     case $COMMAND in
 	"ssh")
-	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $ASG_ARG 22)
+	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $APP_ARG $ASG_ARG 22)
 	    PORT_PID_CACHE_FILE="${PORT_CACHE_FILE}.port-pid"
 	    LOCAL_PORT=$(get_unique_port $ENVIRONMENT_ARG $ASG_ARG 22)
-	    echo ssm_ssh $AWS_PROFILE $ASG_NAME $SSH_USERNAME $SSH_PRIVATE_KEY $LOCAL_PORT $COMMAND_ARG $COMMAND_SOURCE $COMMAND_DEST
-	    ssm_ssh $AWS_PROFILE $ASG_NAME $SSH_USERNAME $SSH_PRIVATE_KEY $LOCAL_PORT $COMMAND_ARG $COMMAND_SOURCE $COMMAND_DEST
+	    echo ssm_ssh $AWS_PROFILE $ASG_NAME $SSH_USERNAME_ARG $SSH_PRIVATE_KEY $LOCAL_PORT $COMMAND_ARG $COMMAND_SOURCE $COMMAND_DEST
+	    ssm_ssh $AWS_PROFILE $ASG_NAME $SSH_USERNAME_ARG $SSH_PRIVATE_KEY $LOCAL_PORT $COMMAND_ARG $COMMAND_SOURCE $COMMAND_DEST
 	    ;;
 	"port_forward")
 	    REMOTE_PORT=$2
-	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $ASG_ARG $REMOTE_PORT)
+	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $APP_ARG $ASG_ARG $REMOTE_PORT)
 	    PORT_PID_CACHE_FILE="${PORT_CACHE_FILE}.port-pid"
 	    LOCAL_PORT=$(get_unique_port $ENVIRONMENT_ARG $ASG_ARG $REMOTE_PORT)
 	    echo ssm_port_forward $AWS_PROFILE $ASG_NAME $LOCAL_PORT $REMOTE_PORT $INSTANCE_IP
@@ -336,8 +345,8 @@ function ssm_ssh()
 
     echo "Local Port Cache File: $PORT_CACHE_FILE"
     echo
-
-    ps awux |grep session-manager-plugin |grep "localPortNumber\": \[\"${LOCAL_PORT}\"" >/dev/null 2>&1
+    EXISTING_CONNECTION=0
+    ps awux |grep session-manager-plugin |grep "localPortNumber\": \[\"${LOCAL_PORT}\"" >/dev/null 2>&1    
     if [ $? -ne 0 ] ; then
 	ssm_port_forward $AWS_PROFILE $ASG_NAME $LOCAL_PORT 22 >$SSM_LOG 2>&1 &
 	PID=$!
@@ -357,7 +366,7 @@ function ssm_ssh()
 		echo "Opening SSH connection on new session: localhost:$LOCAL_PORT"
 		echo "$PID >$PORT_CACHE_FILE.smp-pid"
 		echo $PID >$PORT_PID_CACHE_FILE
-		sleep 2
+		#sleep 3
 		break
 	    fi
 	    grep "An error occurred" $SSM_LOG >/dev/null 2>&1
@@ -373,20 +382,44 @@ function ssm_ssh()
 		exit 1
 	    fi
 	    COUNT=$(($COUNT + 1))
-	    sleep 1
+	    sleep 0.5
 	done
     else
 	echo "Opening SSH connection on existing session: localhost:$LOCAL_PORT"
+	EXISTING_CONNECTION=1
     fi
 
-    ssh-keygen -R [localhost]:$LOCAL_PORT >>$SSM_LOG 2>&1
-    if [ "$COMMAND" == "scp" ] ; then
-	scp -P $LOCAL_PORT -i $SSH_PRIVATE_KEY -o "StrictHostKeyChecking no" $COMMAND_SOURCE $SSH_USER@localhost:$COMMAND_DEST
-    elif [ "$COMMAND" == "scp-from" ] ; then
-	scp -P $LOCAL_PORT -i $SSH_PRIVATE_KEY -o "StrictHostKeyChecking no" $SSH_USER@localhost:$COMMAND_SOURCE $COMMAND_DEST
-    else
-	ssh -p $LOCAL_PORT -i $SSH_PRIVATE_KEY -o "StrictHostKeyChecking no" $SSH_USER@localhost	
-    fi
+    while :
+    do
+	ssh-keygen -R [localhost]:$LOCAL_PORT >>$SSM_LOG 2>&1
+	if [ "$COMMAND" == "scp" ] ; then
+	    RECURSIVE=""
+	    if [ -d "$COMMAND_SOURCE" ] ; then
+		RECURSIVE="-r"
+	    fi
+	    scp -P $LOCAL_PORT -i $SSH_PRIVATE_KEY -o "StrictHostKeyChecking no" $RECURSIVE $COMMAND_SOURCE $SSH_USER@localhost:$COMMAND_DEST
+	    RET=$?
+	elif [ "$COMMAND" == "scp-from" ] ; then
+	    scp -P $LOCAL_PORT -i $SSH_PRIVATE_KEY -o "StrictHostKeyChecking no" $SSH_USER@localhost:$COMMAND_SOURCE $COMMAND_DEST
+	    RET=$?
+	else
+	    ssh -p $LOCAL_PORT -i $SSH_PRIVATE_KEY -o "StrictHostKeyChecking no" $SSH_USER@localhost
+	    RET=$?
+	fi
+
+	if [ $RET -eq 0 ] ; then
+	    echo "Connection exited sucessfully."
+	    break
+	fi
+	echo "Connection failed to connect: $RET"	
+	break
+	echo "Connection failed to connect."
+	if [ $EXISTING_CONNECTION -eq 0 ] ; then
+	    break
+	fi
+	echo "Connection failed to connect, retrying..."
+	EXISTING_CONNETION=0
+    done
 
 }
 
