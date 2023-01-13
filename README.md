@@ -10,20 +10,22 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 
 >#!/bin/bash
 >> 
->&#35; SSH Example
+>&#35; SSH Example Configuration
 >
->&#35; Configuration
+>NETENV_NAME= \<netenv name\>
 >
->NETENV_NAME=websites
->
->SSH_PRIVATE_KEY=~/.ssh/id_rsa
+>>>SSH_PRIVATE_KEY=~/.ssh/id_rsa
 >
 >&#35; Initialize SSM functions
 >
 >. /path/to/helper/waterbear-ssm-functions.sh
 >
->declare_environment <environment>
+>declare_environment \<environment\>
 >
->declare_asg <application> <group> <resource> <username>
+>declare_asg \<application\> \<group\> \<resource\> \<username\>
 >
 >ssm_command $@
+
+### Usage
+
+> $ /usr/local/bin/ssh-to-instance \<environment\> \<application\> \<group\> \<resource\> \<username\>
