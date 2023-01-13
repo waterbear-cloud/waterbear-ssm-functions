@@ -14,7 +14,7 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 >
 >NETENV_NAME= \<netenv name\>
 >
->>>SSH_PRIVATE_KEY=~/.ssh/id_rsa
+>SSH_PRIVATE_KEY=~/.ssh/id_rsa
 >
 >&#35; Initialize SSM functions
 >
