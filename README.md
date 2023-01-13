@@ -18,9 +18,7 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 >
 >SSH_PRIVATE_KEY=~/.ssh/id_rsa
 >
->&#35; Initialize functions
->
->&#35; Load the functions into scope
+>&#35; Initialize SSM functions
 >
 >. /path/to/helper/waterbear-ssm-functions.sh
 >
