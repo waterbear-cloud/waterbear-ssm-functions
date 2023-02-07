@@ -10,29 +10,22 @@ Create a BASH script that loads and uses the functions from the `waterbear-ssm-f
 
 >#!/bin/bash
 >> 
->&#35; SSH Example
+>&#35; SSH Example Configuration
 >
->&#35; Configuration
+>NETENV_NAME= \<netenv name\>
 >
->NETENV_NAME=websites
+>SSH_PRIVATE_KEY=~/.ssh/id_rsa
 >
->APPLICATION_NAME=workloads
->
->AWS_PROFILE_PREFIX=askmed
->
->SSH_USERNAME=ec2-user
->
->SSH_PRIVATE_KEY=~/.ssh/askmed_key_rsa
->
->&#35; Initialize functions
->
->&#35; Load the functions into scope
+>&#35; Initialize SSM functions
 >
 >. /path/to/helper/waterbear-ssm-functions.sh
 >
->declare_environment prod
->declare_environment test
+>declare_environment \<environment\>
 >
->declare_asg oscar_terminal_app server
+>declare_asg \<application\> \<group\> \<resource\> \<username\>
 >
 >ssm_command $@
+
+### Usage
+
+> $ /usr/local/bin/ssh-to-instance \<environment\> \<application\> \<group\> \<resource\> \<username\>
