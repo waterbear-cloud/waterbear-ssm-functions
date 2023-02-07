@@ -21,15 +21,15 @@
 
 # Args
 ENVIRONMENT_ARG=$1
-shift
+shift 1
 APP_ARG=$1
-shift
+shift 1
 ASG_ARG=$1
-shift
+shift 1
 SERVER_ARG=$1
-shift
+shift 1
 SSH_USERNAME_ARG=$1
-shift
+shift 1
 
 # Args: Command and Instance IP
 declare -a ENVIRONMENT_ALIAS
@@ -57,7 +57,7 @@ function valid_ip()
 INSTANCE_IP_ARG=""
 if valid_ip "$1"; then    
     INSTANCE_IP_ARG="$1"
-    shift
+    shift 1
 fi
 
 PORT_FILE_FOLDER=~/.paco-ssh
@@ -206,7 +206,7 @@ function generate_cache_file()
 function ssm_command()
 {
     COMMAND_ARG=$1
-    shift
+    shift 1
 
     if [ "$COMMAND_ARG" == "" ] ; then
 	COMMAND_ARG="ssh"
@@ -242,22 +242,22 @@ function ssm_command()
     case $COMMAND_ARG in
 	"scp") 
 	    COMMAND_SOURCE=$1
-	    shift
+	    shift 1
 	    COMMAND_DEST=$1
-	    shift
+	    shift 1
 	    COMMAND=ssh
 	    ;;	
 	"scp-from") 
 	    COMMAND_SOURCE=$1
-	    shift
+	    shift 1
 	    COMMAND_DEST=$1
-	    shift	    
+	    shift 1
 	    COMMAND=ssh
 	    ;;	
     esac    
 
     INSTANCE_IP=$1
-    shift
+    shift 1
     case $COMMAND in
 	"ssh")
 	    PORT_CACHE_FILE=$(generate_cache_file $ENVIRONMENT_ARG $APP_ARG $ASG_ARG 22)
