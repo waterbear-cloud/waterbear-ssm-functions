@@ -295,6 +295,7 @@ function get_target_instance_id()
 	FILTER="Name=network-interface.addresses.private-ip-address,Values=$ASG_NAME"
     fi
 
+    # echo "aws ec2 describe-instances --profile $AWS_PROFILE --query \"Reservations[0].Instances[*].[InstanceId]\" --filters $FILTER Name=instance-state-name,Values=running --output text" >/tmp/ssm_get_target.log
     aws ec2 describe-instances --profile $AWS_PROFILE --query "Reservations[0].Instances[*].[InstanceId]" --filters $FILTER Name=instance-state-name,Values=running --output text 
 }
 
@@ -319,11 +320,11 @@ function ssm_port_forward()
     INSTANCE_ID=$(get_target_instance_id $AWS_PROFILE $ASG_NAME)
     if [ "$INSTANCE_ID" == "None" -o "$INSTANCE_ID" == "" ] ; then
 	echo "ERROR: Unable to get Instance ID for Server Name: $ASG_NAME"
+	echo "$INSTANCE_ID"
 	exit 1
     fi
 
     echo "Connecting localhost:$LOCAL_PORT to $INSTANCE_ID:$REMOTE_PORT"
-
     echo aws ssm start-session --document-name AWS-StartPortForwardingSession --parameters "localPortNumber=$LOCAL_PORT,portNumber=$REMOTE_PORT" --profile $AWS_PROFILE --target $INSTANCE_ID
     aws ssm start-session --document-name AWS-StartPortForwardingSession --parameters "localPortNumber=$LOCAL_PORT,portNumber=$REMOTE_PORT" --profile $AWS_PROFILE --target $INSTANCE_ID
 }
@@ -351,7 +352,7 @@ function ssm_ssh()
 	ssm_port_forward $AWS_PROFILE $ASG_NAME $LOCAL_PORT 22 >$SSM_LOG 2>&1 &
 	PID=$!
 	COUNT=0
-	TIMEOUT_SECS=20
+	TIMEOUT_SECS=30
 	while :
 	do
 	    grep "bind: address already in use" $SSM_LOG >/dev/null 2>&1
@@ -378,7 +379,6 @@ function ssm_ssh()
 	    if [ $COUNT -eq $TIMEOUT_SECS ] ; then
 		echo "ERROR: Timedout waiting for ssm session:"
 		cat $SSM_LOG
-		rm -f $PORT_CACHE_FILE
 		exit 1
 	    fi
 	    COUNT=$(($COUNT + 1))
